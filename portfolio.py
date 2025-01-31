@@ -1,20 +1,34 @@
 import streamlit as st
 import tensorflow as tf
 import numpy as np
+import os
 import re
+import pickle
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 import openai
 
 # Load trained sentiment model
-model = tf.keras.models.load_model("sentiment_model.h5")
+model_path = "sentiment_model.h5"
+if os.path.exists(model_path):
+    model = tf.keras.models.load_model(model_path)
+else:
+    st.error("🚨 Sentiment model not found! Make sure 'sentiment_model.h5' is uploaded.")
+    st.stop()
 
 # Load tokenizer (Ensure it's the same used during training)
-tokenizer = Tokenizer(num_words=20000, oov_token="<OOV>")
+tokenizer_path = "tokenizer.pickle"
+if os.path.exists(tokenizer_path):
+    with open(tokenizer_path, "rb") as handle:
+        tokenizer = pickle.load(handle)
+else:
+    st.warning("⚠️ Tokenizer file not found. Using default tokenizer.")
+    tokenizer = Tokenizer(num_words=20000, oov_token="<OOV>")
+
 max_sequence_length = 200
 
-# OpenAI API Key
-openai.api_key = "your_openai_api_key"  # Replace with your actual API key
+# OpenAI API Key (Use environment variable or Streamlit Secrets)
+openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY")
 
 # Function to preprocess user input
 def preprocess_text(review):
@@ -50,6 +64,9 @@ def generate_gpt_response(sentiment, review):
     Keep the response short, professional, and engaging.
     """
 
+    if openai.api_key is None:
+        return "🚨 OpenAI API key missing! Set 'OPENAI_API_KEY' in Streamlit Secrets."
+
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -57,7 +74,7 @@ def generate_gpt_response(sentiment, review):
         )
         return response["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        return "Error generating response. Please try again later."
+        return "⚠️ Error generating response. Please try again later."
 
 # Streamlit Web App
 st.title("🎭 AI-Powered Sentiment Analysis & Response Generator")
@@ -76,3 +93,4 @@ if st.button("Analyze Sentiment"):
         st.write(f"**🤖 AI Response:** {response}")
     else:
         st.warning("⚠️ Please enter a review before analyzing.")
+
