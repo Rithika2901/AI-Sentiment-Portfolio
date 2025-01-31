@@ -1,34 +1,28 @@
 import streamlit as st
 import tensorflow as tf
 import numpy as np
-import os
-import re
 import pickle
+import re
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 import openai
 
 # Load trained sentiment model
-model_path = "sentiment_model.h5"
-if os.path.exists(model_path):
-    model = tf.keras.models.load_model(model_path)
-else:
-    st.error("🚨 Sentiment model not found! Make sure 'sentiment_model.h5' is uploaded.")
-    st.stop()
+model = tf.keras.models.load_model("sentiment_model.h5")
 
-# Load tokenizer (Ensure it's the same used during training)
-tokenizer_path = "tokenizer.pickle"
-if os.path.exists(tokenizer_path):
-    with open(tokenizer_path, "rb") as handle:
+# Load tokenizer from pickle file
+try:
+    with open("tokenizer.pickle", "rb") as handle:
         tokenizer = pickle.load(handle)
-else:
+    print("✅ Tokenizer loaded successfully!")
+except FileNotFoundError:
     st.warning("⚠️ Tokenizer file not found. Using default tokenizer.")
     tokenizer = Tokenizer(num_words=20000, oov_token="<OOV>")
 
-max_sequence_length = 200
+max_sequence_length = 200  # Ensure it matches training
 
-# OpenAI API Key (Use environment variable or Streamlit Secrets)
-openai.api_key = st.secrets["OPENAI_API_KEY"] if "OPENAI_API_KEY" in st.secrets else os.getenv("OPENAI_API_KEY")
+# OpenAI API Key (Make sure to set it as an environment variable)
+openai.api_key = "your_openai_api_key"  # Replace with your actual API key
 
 # Function to preprocess user input
 def preprocess_text(review):
@@ -64,9 +58,6 @@ def generate_gpt_response(sentiment, review):
     Keep the response short, professional, and engaging.
     """
 
-    if openai.api_key is None:
-        return "🚨 OpenAI API key missing! Set 'OPENAI_API_KEY' in Streamlit Secrets."
-
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -74,7 +65,7 @@ def generate_gpt_response(sentiment, review):
         )
         return response["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        return "⚠️ Error generating response. Please try again later."
+        return "Error generating response. Please try again later."
 
 # Streamlit Web App
 st.title("🎭 AI-Powered Sentiment Analysis & Response Generator")
